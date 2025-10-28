@@ -9,6 +9,7 @@ project_dir="${CLAUDE_PROJECT_DIR:-$PWD}"
 
 # unified log file in project
 log_file="$project_dir/.claude/hooks.log"
+log_dir="$project_dir/.claude"
 mkdir -p "$project_dir/.claude"
 
 # Compose message for JSON field
@@ -88,8 +89,9 @@ else
 fi
 
 # Append multi-line JSON entry combining message, description, doc_url and payload
+ts_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 jq -n \
-  --arg ts "$(date +%s)" \
+  --arg ts "$ts_iso" \
   --arg event "$event" \
   --arg phase "$phase" \
   --arg message "$message" \
@@ -97,7 +99,7 @@ jq -n \
   --arg doc_url "$doc_url" \
   --argjson payload "$compact_json" \
   '{
-    ts: ($ts|tonumber),
+    ts: $ts,
     event: $event,
     phase: $phase,
     message: $message,
@@ -105,3 +107,12 @@ jq -n \
     doc_url: $doc_url,
     payload: $payload
   }' >> "$log_file"
+
+# If task completed, rotate: archive current log and create a fresh hooks.log
+if [ "$event" = "Stop" ] || [ "$event" = "SubagentStop" ]; then
+  rotate_ts="$(date +"%H%M%S")"
+  if [ -f "$log_file" ]; then
+    mv "$log_file" "$log_dir/hooks.$rotate_ts.log"
+  fi
+  : > "$log_file"
+fi
