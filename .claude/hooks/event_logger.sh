@@ -107,12 +107,3 @@ jq -n \
     doc_url: $doc_url,
     payload: $payload
   }' >> "$log_file"
-
-# If task completed, rotate: archive current log and create a fresh hooks.log
-if [ "$event" = "Stop" ] || [ "$event" = "SubagentStop" ]; then
-  rotate_ts="$(date +"%H%M%S")"
-  if [ -f "$log_file" ]; then
-    mv "$log_file" "$log_dir/hooks.$rotate_ts.log"
-  fi
-  : > "$log_file"
-fi
